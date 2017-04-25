@@ -17,29 +17,32 @@
 import sys
 import re
 import random
+import ssl
 import socket
 import urllib2 # useful to get content of links posted on the channel
 
-# Config
-SERVER="irc.freenode.net"
-PORT=6667
-CHANNEL="#sectorone"
-BOTNICK="s3ct0rB0t"
-
 class SectorBot:
+    
+    # Config
+    SERVER="irc.freenode.net"
+    PORT=6697
+    CHANNEL="#sectorone"
+    BOTNICK="S3ct0rB0t"
+    
+    
     msg_stack=[]
     lol=-1
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock = ssl.wrap_socket(self.sock)
         random.seed()
 
     def connect(self):
-        global SERVER,PORT,CHANNEL,BOTNICK
-        print "[*] Connecting to " + SERVER + " port " + str(PORT) + " chan " + CHANNEL + " using nick " + BOTNICK
-        self.sock.connect((SERVER, PORT))
-        self.sock.send("USER "+BOTNICK+" "+BOTNICK+" "+BOTNICK+" : H4cK7h3p14n37!\n")
-        self.sock.send("NICK "+BOTNICK+"\n")
-        self.sock.send("JOIN "+CHANNEL+"\n")
+        print "[*] Connecting to " + self.SERVER + " port " + str(self.PORT) + " chan " + self.CHANNEL + " using nick " + self.BOTNICK
+        self.sock.connect((self.SERVER, self.PORT))
+        self.sock.send("USER "+self.BOTNICK+" "+self.BOTNICK+" "+self.BOTNICK+" : H4cK7h3p14n37!\n")
+        self.sock.send("NICK "+self.BOTNICK+"\n")
+        self.sock.send("JOIN "+self.CHANNEL+"\n")
         self.sock.recv(1024) # Further checks can be done with this.
         # TODO: replace NICK if already taken
         #       or even register the bot then identifiy below.
@@ -50,10 +53,11 @@ class SectorBot:
     def privmsg(self, target, msg):
         self.sock.send("PRIVMSG "+target+" :"+msg+"\r\n")
 
+
+
     def h4x17(self):
-        global CHANNEL,BOTNICK
         while True:
-            data = self.sock.recv(4096)
+            data = self.sock.recv(1024)
             if not data:
                 pass
             elif data.find('PING') != -1: # PING?
@@ -100,13 +104,12 @@ class SectorBot:
             title=title[:title.index('</title>')]
             title=title.replace('<title>','')
         if title is not "":
-            self.privmsg(CHANNEL, "["+str(author)+"] {" + str(title) + "} ("+str(c_type)+", "+str(c_length)+" Bytes)")
+            self.privmsg(target, "["+str(author)+"] {" + str(title) + "} ("+str(c_type)+", "+str(c_length)+" Bytes)")
         else:
-            self.privmsg(CHANNEL, "["+str(author)+"] ("+str(c_type)+", "+str(c_length)+" Bytes)")
+            self.privmsg(target, "["+str(author)+"] ("+str(c_type)+", "+str(c_length)+" Bytes)")
 
     def handle_cmd(self, author, target, msg):
         mod=msg[0]
-        
         if mod is 's':
             if msg[1] is '/':
                 payload=msg[2:]
@@ -121,16 +124,37 @@ class SectorBot:
                         self.privmsg(target, past_msg)
                         return
                 return
+        if msg is "Hello " + self.BOTNICK:
+            self.privmsg(target, "Hello " + author + "!")
 
         if mod is '!':
-            self.privmsg(target, "["+str(author)+"] No commands yet.. except `s/<search>/<replace>` Share your ideas for commands!")
-            # TODO: commands.
-            # rand, roulette, ...
+            cmd=msg[1:]
+            if cmd.find(' ')!=-1:
+                argv=cmd.split(' ')
+            else:
+                argv = [cmd]
+            if argv[0] == "rand":
+                if len(argv) == 1:
+                    self.privmsg(target, str((random.getrandbits(0xFFFF) + 1) % 100))
+                elif len(argv) == 2:
+                    self.privmsg(target, str((random.getrandbits(0xFFFF) + 1) % int(argv[1])))
+                else:
+                    self.privmsg(target, str((random.getrandbits(0xFFFF) + int(argv[1]) % int(argv[2]))))
+
+            if argv[0] == "roulette":
+                if random.randint(1,6) == random.randint(1,6):
+                    self.privmsg(target, "["+author+"] BOOM! You are dead.")
+                    self.sock.send("KICK "+ target + " " + author + "\r\n")
+                    print self.sock.recv(128)
+                else:
+                    self.privmsg(target, "["+author+"] *click*")
+            # n33d m04r ...
 
         # Because SectorBot has a heart! <3
         r=random.randint(0,100)
         if r > 85:
             self.privmsg(target, "lol")
+
 
 
 irc=SectorBot()
