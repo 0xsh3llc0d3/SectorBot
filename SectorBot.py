@@ -31,7 +31,6 @@ class SectorBot:
     
     
     msg_stack=[]
-    lol=-1
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock = ssl.wrap_socket(self.sock)
