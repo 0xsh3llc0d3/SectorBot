@@ -19,7 +19,7 @@ import re
 import random
 import ssl
 import socket
-import urllib2 # useful to get content of links posted on the channel
+import httplib
 
 class SectorBot:
     
@@ -27,7 +27,7 @@ class SectorBot:
     SERVER="irc.freenode.net"
     PORT=6697
     CHANNEL="#sectorone"
-    BOTNICK="S3ct0rB0t"
+    BOTNICK="S3c70rB0t"
     
     
     msg_stack=[]
@@ -43,7 +43,7 @@ class SectorBot:
         self.sock.send("USER "+self.BOTNICK+" "+self.BOTNICK+" "+self.BOTNICK+" : H4cK7h3p14n37!\n")
         self.sock.send("NICK "+self.BOTNICK+"\n")
         self.sock.send("JOIN "+self.CHANNEL+"\n")
-        self.sock.recv(1024) # Further checks can be done with this.
+        self.sock.recv(2048) # Further checks can be done with this.
         # TODO: replace NICK if already taken
         #       or even register the bot then identifiy below.
 
@@ -86,23 +86,52 @@ class SectorBot:
         
     def handle_url(self, author, target, msg):
         title=""
+        content=""
+        c_type=""
+        c_length=""
+        page=""
+        ssl=False
         try:
             url=msg[msg.index('http'):]
+            if url.find(' ') != -1:
+                url=url[:url.index(' ')]
+
+            base_url=url.split("/")[2]
+            if len(url.split("/"))>2:
+                for i in range(3, len(url.split("/"))):
+                    page+="/"+url.split("/")[i]
         except:
             url=msg[msg.index('www.'):]
-        if url.find(' ') != -1:
-            url=url[:url.index(' ')]
+            if url.find(' ') != -1:
+                url=url[:url.index(' ')]
+            base_url=url.split("/")[0]
+
+            if len(url.split("/"))>1:
+                for i in range(2, len(url.split("/"))):
+                    page+="/"+url.split("/")[i]
+
+            if page == "":
+                page = "/"
+
         try:
-            response=urllib2.urlopen(url)
-            content=response.read()
-            c_type=response.info().getheader('Content-Type')
-            c_length=response.info().getheader('Content-Length')
+            print "ssl"
+            c = httplib.HTTPSConnection(base_url)
+            c.request("GET", page)
+        except:
+            print "plain"
+            c = httplib.HTTPConnection(base_url)
+            c.request("GET", page)
+        try:
+            r=c.getresponse()
+            content=r.read()
+            c_type=r.getheader('Content-Type')
+            c_length=r.getheader('Content-Length')
         except:
             pass
         if content.find('<title>') != -1:
             title=content[content.index('<title>'):]
             title=title[:title.index('</title>')]
-            title=title.replace('<title>','')
+            title=title.replace('<title>','').replace("\n", " ").strip()
         if title is not "":
             self.privmsg(target, "["+str(author)+"] {" + str(title) + "} ("+str(c_type)+", "+str(c_length)+" Bytes)")
         else:
@@ -144,7 +173,7 @@ class SectorBot:
             if argv[0] == "roulette":
                 if random.randint(1,6) == random.randint(1,6):
                     self.privmsg(target, "["+author+"] BOOM! You are dead.")
-                    self.sock.send("KICK "+ target + " " + author + "\r\n")
+                    self.sock.send("KICK "+ target + " " + author + ": Here we kick kali users\r\n")
                     print self.sock.recv(128)
                 else:
                     self.privmsg(target, "["+author+"] *click*")
@@ -152,7 +181,7 @@ class SectorBot:
 
         # Because SectorBot has a heart! <3
         r=random.randint(0,100)
-        if r > 85:
+        if r > 95:
             self.privmsg(target, "lol")
 
 
